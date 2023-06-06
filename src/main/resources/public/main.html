@@ -4,10 +4,9 @@
     <meta charset="UTF-8">
     <title>Title</title>
     <script type="text/javascript" src="/webjars/jquery/3.5.1/jquery.js"></script>
-    <script type="text/javascript" src="/webjars/layui/2.5.6/layui.js"></script>
-    <link rel="stylesheet" href="/webjars/layui/2.5.6/css/layui.css">
-    <script type="text/javascript"
-            src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.25.0/cytoscape.min.js"></script>
+    <script type="text/javascript" src="/webjars/layui/2.6.8/layui.js"></script>
+    <link rel="stylesheet" href="/webjars/layui/2.6.8/css/layui.css">
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.25.0/cytoscape.min.js"></script>
 </head>
 <body>
 <div class="layui-row">
@@ -24,9 +23,8 @@
         </div>
     </div>
     <div class="layui-btn-container layui-col-md8" style="padding-top: 30px;padding-left: 20px">
-        <button type="button" class="layui-btn" id="fileUpload">选择文件</button>
-        <button type="button" class="layui-btn" id="btnUpload"><i class="layui-icon layui-icon-upload"></i>开始上传
-        </button>
+        <button type="button" class="layui-btn" id="fileUpload" lay-options="{video}">选择文件</button>
+        <button type="button" class="layui-btn" id="btnUpload">开始上传</button>
     </div>
 </div>
 <div class="layui-row" style="margin-top: 30px">
@@ -71,6 +69,7 @@
         <span style="margin-left: 30px">距离：</span><span id="dis" style="color: red"></span>
     </div>
 </div>
+</body>
 <script>
     var nodes = new Set();
     var edges = [];
@@ -119,7 +118,8 @@
         //曲线端点样式，target可替换为source、mid-source、mid-target
         // 'color': '#2a3b77',
         // 'content': 'data(relationship)',
-    }
+    };
+
     var cy = cytoscape({
         container: $("#cy"),
         style: [
@@ -133,6 +133,7 @@
             },
         ],
     });
+
     $(function () {
         $.get("/graphList", function (response) {
             $.each(response, function (index, value) {
@@ -204,7 +205,6 @@
                 alert("图为空");
                 return;
             }
-
             $("#dis").text(response.dis);
             var EdgeVisitedList = response.visitedList.split('|');
             var delayTime = 500;
@@ -286,13 +286,12 @@
             group: 'edges',
             data: {source: sourceId, target: targetId, id: sourceId + '-' + targetId, dis: dis}
         }]);
-    }
-
-    layui.use(['layer', 'upload', 'form'], function () {
-
+    };
+    layui.use(['form','layer', 'upload','jquery'], function () {
         var layer = layui.layer;
-        var form = layui.form;
         var upload = layui.upload;
+        var form = layui.form;
+        var $ = layui.jquery;
         // 渲染
         upload.render({
             elem: '#fileUpload',
@@ -311,6 +310,6 @@
             }
         });
     });
+
 </script>
-</body>
 </html>
