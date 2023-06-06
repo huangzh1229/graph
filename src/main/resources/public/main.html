@@ -1,10 +1,316 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>$Title$</title>
+    <meta charset="UTF-8">
+    <title>Title</title>
+    <script type="text/javascript" src="/webjars/jquery/3.5.1/jquery.js"></script>
+    <script type="text/javascript" src="/webjars/layui/2.5.6/layui.js"></script>
+    <link rel="stylesheet" href="/webjars/layui/2.5.6/css/layui.css">
+    <script type="text/javascript"
+            src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.25.0/cytoscape.min.js"></script>
 </head>
 <body>
-$END$
+<div class="layui-row">
+    <div class="layui-col-md3" style="margin-left: 30px">
+        <div class="layui-panel">
+            <div style="padding: 32px;background: #cecaca">输入的图必须按照以下格式：<br>
+                第一行顶点总数，第二行开始为边,顶点必须从0开始<br>
+                3<br>
+                0 1<br>
+                1 2<br>
+                2 0<br>
+                文件后缀为txt,文件大小不能超过10MB
+            </div>
+        </div>
+    </div>
+    <div class="layui-btn-container layui-col-md8" style="padding-top: 30px;padding-left: 20px">
+        <button type="button" class="layui-btn" id="fileUpload">选择文件</button>
+        <button type="button" class="layui-btn" id="btnUpload"><i class="layui-icon layui-icon-upload"></i>开始上传
+        </button>
+    </div>
+</div>
+<div class="layui-row" style="margin-top: 30px">
+    <div class="layui-col-xs3">
+        <div class="layui-form layui-inline" style="margin-left: 70px">
+            <select id="selectGraph">
+                <option selected></option>
+            </select>
+        </div>
+    </div>
+    <div class="layui-col-xs3">
+        <div class="layui-inline">
+            <button style="margin-left: 20px;" id="btnGetGraph" onclick="initGraph()" class="layui-btn">获取图</button>
+            <button style="margin-left: 20px;" id="btninitGraphStyle" onclick="initGraphStyle()"
+                    class="layui-btn layui-btn-danger">清除图样式
+            </button>
+        </div>
+    </div>
+</div>
+<div style="height: 550px;margin-top: 10px">
+    <div id="cy" style="height: 550px;width: 70%;float: left;border: 1px solid black;margin-left: 20px"></div>
+    <div style="float:left;margin-left: 20px;">
+        <div class="layui-form-item">
+            <label for="start" class="layui-form-label" style="margin-left: 10px">起点</label>
+            <div class="layui-input-inline">
+                <input id="start" class="layui-input" name="start" value="6">
+            </div>
+        </div>
+        <div class="layui-form-item">
+            <label for="end" class="layui-form-label" style="margin-left: 10px">终点</label>
+            <div class="layui-input-inline">
+                <input id="end" class="layui-input" name="end" value="2"><br>
+            </div>
+        </div>
+        <button style="margin-top: 20px;margin-left: 60px" id="Dijkstra" class="layui-btn layui-btn-normal"
+                onclick="Dijkstra()">Dijkstra
+        </button>
+        <button style="margin-top: 20px;margin-left: 50px" id="BiBFS" class="layui-btn layui-btn-normal"
+                onclick="initGraphStyle()">BiBFS
+        </button>
+        <br><br>
+        <span style="margin-left: 30px">距离：</span><span id="dis" style="color: red"></span>
+    </div>
+</div>
+<script>
+    var nodes = new Set();
+    var edges = [];
+    var styleJson = null;
+    var layout = {
+        name: 'cose',
+        randomize: true,//随机初始化位置
+        nodeRepulsion: 8000, // 节点之间的斥力
+        nestingFactor: 0.1, // 控制节点的聚类程度
+        gravity: 11,// 控制整个图的重心
+        maxEdgesPerNode: 1,// 设置每个节点的最大边数为 1
+        arrowShape: true // 启用箭头渲染
+    };
+    var nodeStyle = {
+        'label': function (ele) {
+            return ele.data('id');
+        },
+        'text-valign': 'center', // 文本垂直居中
+        'text-halign': 'center', // 文本水平居中
+        //形状相关属性
+        'width': '30',
+        'height': '30',
+        'shape': 'ellipse', // triangle | rectangle |
+        //背景色相关属性
+        'background-color': 'white',
+        'background-opacity': '0.9',
+        //边框相关属性
+        'border-width': '2',
+        'border-style': 'solid',
+        'border-color': 'black',
+        'border-opacity': '0.8',
+        //padding相关属性
+        'padding': '10px',
+    };
+    var edgeStyle = {
+        'width': '2',
+        //曲线样式，haystack | straight | straight-triangle | bezier | unbundled-bezier | segments
+        'curve-style': 'bezier',
+        'line-color': 'black',
+        'line-style': 'solid', //边线样式，solid | dotted | dashed
+        'line-cap': 'round', //边缘线的帽样式
+        'line-opacity': '0.8', //边线不透明度，0-1之间
+        'label': function (ele) {
+            return ele.data('dis');
+        }
+        //曲线端点样式，target可替换为source、mid-source、mid-target
+        // 'color': '#2a3b77',
+        // 'content': 'data(relationship)',
+    }
+    var cy = cytoscape({
+        container: $("#cy"),
+        style: [
+            {
+                selector: 'node',
+                style: nodeStyle
+            },
+            {
+                selector: 'edge',
+                style: edgeStyle
+            },
+        ],
+    });
+    $(function () {
+        $.get("/graphList", function (response) {
+            $.each(response, function (index, value) {
+                var optionElement = $("<option>").val(value).text(value);
+                $("#selectGraph").append(optionElement);
+            });
+        })
+    });
+
+    function initGraph() {
+        if ($("#selectGraph").val() === '' && styleJson != null) {
+            alert("请选择图")
+            return;
+        }
+        $.get("/graph",
+            {
+                "graphName": $("#selectGraph").val()
+            }, function (response) {
+                nodes.clear();
+                edges.length = 0;
+                cy.remove(cy.elements());
+                styleJson = null;
+                try {
+                    var strEdgeArr = response.split(',');
+                    for (const strEdge of strEdgeArr) {
+                        var [source, target, dis] = strEdge.split(' ');
+                        nodes.add(source);
+                        nodes.add(target);
+                        edges.push({source, target});
+                        cy.add([{group: 'nodes', data: {id: source}}, {group: 'nodes', data: {id: target}},
+                        ]);
+                        addEdge(source, target, dis);
+                    }
+                } catch (e) {
+                    alert("图文件格式错误");
+                    return;
+                }
+                cy.layout(layout).run();
+                styleJson = cy.style().json();
+            }
+        );
+    }
+
+    function initGraphStyle() {
+        cy.$('node, edge').stop(true, false);
+        cy.$('node, edge').clearQueue();
+        cy.nodes().removeStyle(); // 清除直接应用的样式
+        cy.nodes().style(nodeStyle); // 重新设置样式
+        cy.edges().removeStyle(); // 清除直接应用的样式
+        cy.edges().style(edgeStyle); // 重新设置样式
+    }
+
+    function Dijkstra() {
+        if (!inputExist()) {
+            alert("请输入起点和终点");
+            return;
+        }
+        if (styleJson == null) {
+            alert("请绘图后再运行算法");
+            return;
+        }
+        var st = parseInt($("#start").val());
+        var ed = parseInt($("#end").val());
+        initGraphStyle();
+        $.get("/Dijkstra", {
+            "s": st, "t": ed
+        }, function (response) {
+            if (response === "") {
+                alert("图为空");
+                return;
+            }
+
+            $("#dis").text(response.dis);
+            var EdgeVisitedList = response.visitedList.split('|');
+            var delayTime = 500;
+            var i = 0;
+            var vv = new Array(nodes.size).fill(false);
+            for (var p of [st, ed]) {
+                cy.$("#" + p).animate({style: {'background-color': "yellow"}}, {duration: 1000})
+                    .delay((i++) * delayTime);
+                vv[p] = true;
+            }
+            for (var Edge of EdgeVisitedList) {
+                var [s, t] = Edge.split(',');
+                if (!vv[s]) {
+                    cy.$("#" + s).animate({style: {'background-color': "white"}}, {duration: 1000})
+                        .delay((i++) * delayTime)
+                        .animate({
+                            style: {
+                                'border-color': 'red',
+                                'background-color': 'red',
+                                'color': '#2a3b77',
+                            },
+                        }, {duration: 1000});
+                    vv[s] = true;
+                }
+                var source = s;
+                var target = t;
+                if (source > target) {
+                    var temp = source;
+                    source = target;
+                    target = temp;
+                }
+                cy.$('#' + source + '-' + target).animate({style: {'background-color': 'white'}}, {duration: 1000})
+                    .delay((i++) * delayTime)
+                    .animate({
+                        style: {
+                            'line-color': 'red',
+                        }
+                    }, {duration: 1000});
+                if (!vv[t]) {
+                    cy.$("#" + t).animate({style: {'background-color': "white"}}, {duration: 1000})
+                        .delay((i++) * delayTime)
+                        .animate({
+                            style: {
+                                'border-color': 'red',
+                                'background-color': 'red',
+                            },
+                        }, {duration: 1000});
+                    vv[t] = true;
+                }
+            }
+            console.log("动画添加结束");
+        });
+    }
+
+    function inputExist() {
+        if ($("#start").val() === " " || $("#end").val() === " ") {
+            return false;
+        }
+        return true;
+    }
+
+    function addEdge(sourceId, targetId, dis) {
+        var sourceNode = cy.$('#' + sourceId);
+        var targetNode = cy.$('#' + targetId);
+
+        // 检查两个顶点之间是否已经存在边
+        var existingEdges = sourceNode.edgesWith(targetNode) || targetNode.edgesWith(sourceNode);
+        if (existingEdges.length > 0) {
+            console.log('两个顶点之间已存在边。');
+            return false;
+        }
+        // 不存在边，可以添加新边
+        if (sourceId > targetId) {
+            var temp = sourceId;
+            sourceId = targetId;
+            targetId = temp;
+        }
+        cy.add([{
+            group: 'edges',
+            data: {source: sourceId, target: targetId, id: sourceId + '-' + targetId, dis: dis}
+        }]);
+    }
+
+    layui.use(['layer', 'upload', 'form'], function () {
+
+        var layer = layui.layer;
+        var form = layui.form;
+        var upload = layui.upload;
+        // 渲染
+        upload.render({
+            elem: '#fileUpload',
+            url: '/upload', // 此处配置你自己的上传接口即可
+            field: 'graph',
+            auto: false,
+            size: 10 * 1024, // 限制文件大小，单位 KB
+            // multiple: true,
+            bindAction: '#btnUpload',
+            done: function (res) {
+                if (res.code === "200")
+                    layer.msg('文件上传成功');
+                else {
+                    layer.msg(res.msg, {icon: 2});
+                }
+            }
+        });
+    });
+</script>
 </body>
 </html>
