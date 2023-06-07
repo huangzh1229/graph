@@ -1,5 +1,6 @@
 package com.example.demo;
 
+import org.apache.tomcat.util.http.fileupload.FileUploadException;
 import org.springframework.core.io.ClassPathResource;
 
 import org.springframework.util.Assert;
@@ -11,11 +12,11 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.BufferedReader;
 import java.io.File;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.*;
 
 
 /**
@@ -26,6 +27,7 @@ import java.util.Map;
 public class mainController {
     Graph G = new Graph();
     final private String graphFilePath = "/static/graph/";
+
     @GetMapping("/graph")
     String getGraph(@RequestParam String graphName) {
         StringBuffer result = new StringBuffer();
@@ -52,44 +54,45 @@ public class mainController {
     }
 
     @PostMapping("/upload")
-    public HashMap<String, String> handleFileUpload(@RequestParam("graph") MultipartFile file) {
+    public HashMap<String, String> handleFileUpload(@RequestParam("graph") MultipartFile file) throws Exception {
         HashMap<String, String> result = new HashMap<>();
         result.put("code", "500");
-        try {
-            if (!file.isEmpty()) {
-                // 处理文件上传逻辑
-                // 可以使用MultipartFile的方法获取文件信息，例如文件名、大小、内容等
-                String fileName = file.getOriginalFilename();
-                System.out.println(fileName);
-                if (StringUtils.hasText(fileName) && !fileName.contains("txt")) {
-                    result.put("msg", "必须是txt文件");
-                    return result;
-                }
-                ClassPathResource readFile = new ClassPathResource(graphFilePath);
-                File folder = readFile.getFile();
-                File[] files = folder.listFiles();
-                if (files != null) {
-                    for (var f : files) {
-                        if (f.getName().equals(fileName)) {
-                            result.put("code", "500");
-                            result.put("msg", "文件重复");
-                            return result;
-                        }
+        if (!file.isEmpty()) {
+            // 处理文件上传逻辑
+            // 可以使用MultipartFile的方法获取文件信息，例如文件名、大小、内容等
+            String fileName = file.getOriginalFilename();
+            System.out.println(fileName);
+            if (StringUtils.hasText(fileName) && !fileName.contains("txt")) {
+                throw new FileUploadException("必须是txt文件");
+            }
+            ClassPathResource readFile = new ClassPathResource(graphFilePath);
+            File folder = readFile.getFile();
+            File[] files = folder.listFiles();
+            if (files != null) {
+                for (var f : files) {
+                    if (f.getName().equals(fileName)) {
+                        throw new FileUploadException("文件重复");
                     }
                 }
-                String realPath = ResourceUtils.getURL("classpath:").getPath() + graphFilePath;
-                file.transferTo(new File(realPath + File.separator + fileName));
-                result.put("code", "200");
-                return result;
-            } else {
-                result.put("msg", "文件为空");
-                return result;
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-            result.put("msg", "上传失败");
+            InputStream inputStream = file.getInputStream();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
+            String firstLine = reader.readLine();
+            reader.close();
+            try {
+                Integer.parseInt(firstLine);
+            } catch (Exception e) {
+                throw new FileUploadException("文件格式错误");
+            }
+            String realPath = ResourceUtils.getURL("classpath:").getPath() + graphFilePath;
+            file.transferTo(new File(realPath + File.separator + fileName));
+            result.put("code", "200");
+            return result;
+        } else {
+            result.put("msg", "文件为空");
             return result;
         }
+
     }
 
     @GetMapping("/Dijkstra")
@@ -98,7 +101,7 @@ public class mainController {
         Map<String, Object> result = G.Dijkstra(s, t);
         StringBuffer line = new StringBuffer();
         for (Graph.Pair p : (ArrayList<Graph.Pair>) result.get(G.mapKey_visitedList)) {
-            if (p.u==-1||p.v==-1)continue;
+            if (p.u == -1 || p.v == -1) continue;
             line.append(p.u + "," + p.v + "|");
         }
         result.put(G.mapKey_visitedList, line.substring(0, line.length() - 1).toString());

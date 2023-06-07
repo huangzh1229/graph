@@ -72,7 +72,6 @@ public class Graph {
             ClassPathResource readFile = new ClassPathResource(filePath);
             File file = readFile.getFile();
             Scanner scanner = new Scanner(file);
-
             // Read the number of vertices
             if (scanner.hasNextLine()) {
                 this.countVertex = Integer.parseInt(scanner.nextLine().trim());

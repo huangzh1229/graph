@@ -1,5 +1,6 @@
 package com.example.demo;
 
+import org.apache.tomcat.util.http.fileupload.FileUploadException;
 import org.apache.tomcat.util.http.fileupload.impl.SizeLimitExceededException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,6 +24,15 @@ public class ExceptionHandlerConfig {
         HashMap<String, String> re = new HashMap<>();
         re.put("code", "500");
         re.put("msg", "文件超过10MB");
+        return re;
+    }
+
+    @ExceptionHandler(FileUploadException.class)
+    public Map<String, String> fileException(FileUploadException e) {
+        logger.info("上传错误：" + e.getMessage());
+        HashMap<String, String> re = new HashMap<>();
+        re.put("code", "500");
+        re.put("msg", e.getMessage());
         return re;
     }
 }

@@ -6,7 +6,8 @@
     <script type="text/javascript" src="/webjars/jquery/3.5.1/jquery.js"></script>
     <script type="text/javascript" src="/webjars/layui/2.6.8/layui.js"></script>
     <link rel="stylesheet" href="/webjars/layui/2.6.8/css/layui.css">
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.25.0/cytoscape.min.js"></script>
+    <script type="text/javascript"
+            src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.25.0/cytoscape.min.js"></script>
 </head>
 <body>
 <div class="layui-row">
@@ -23,8 +24,10 @@
         </div>
     </div>
     <div class="layui-btn-container layui-col-md8" style="padding-top: 30px;padding-left: 20px">
-        <button type="button" class="layui-btn" id="fileUpload" lay-options="{video}">选择文件</button>
-        <button type="button" class="layui-btn" id="btnUpload">开始上传</button>
+        <div class="layui-upload">
+            <button type="button" class="layui-btn layui-btn-normal" id="ID-upload-file">选择文件</button>
+            <button type="button" class="layui-btn" id="ID-upload-action">开始上传</button>
+        </div>
     </div>
 </div>
 <div class="layui-row" style="margin-top: 30px">
@@ -63,7 +66,7 @@
                 onclick="Dijkstra()">Dijkstra
         </button>
         <button style="margin-top: 20px;margin-left: 50px" id="BiBFS" class="layui-btn layui-btn-normal"
-                onclick="initGraphStyle()">BiBFS
+                onclick="BiBFS()">BiBFS
         </button>
         <br><br>
         <span style="margin-left: 30px">距离：</span><span id="dis" style="color: red"></span>
@@ -71,6 +74,7 @@
 </div>
 </body>
 <script>
+    const delayTime = 200;
     var nodes = new Set();
     var edges = [];
     var styleJson = null;
@@ -134,14 +138,6 @@
         ],
     });
 
-    $(function () {
-        $.get("/graphList", function (response) {
-            $.each(response, function (index, value) {
-                var optionElement = $("<option>").val(value).text(value);
-                $("#selectGraph").append(optionElement);
-            });
-        })
-    });
 
     function initGraph() {
         if ($("#selectGraph").val() === '' && styleJson != null) {
@@ -207,7 +203,7 @@
             }
             $("#dis").text(response.dis);
             var EdgeVisitedList = response.visitedList.split('|');
-            var delayTime = 500;
+
             var i = 0;
             var vv = new Array(nodes.size).fill(false);
             for (var p of [st, ed]) {
@@ -241,6 +237,7 @@
                     .animate({
                         style: {
                             'line-color': 'red',
+                            'width': 3,
                         }
                     }, {duration: 1000});
                 if (!vv[t]) {
@@ -256,6 +253,29 @@
                 }
             }
             console.log("动画添加结束");
+        });
+    }
+
+    function BiBFS() {
+        if (!inputExist()) {
+            alert("请输入起点和终点");
+            return;
+        }
+        if (styleJson == null) {
+            alert("请绘图后再运行算法");
+            return;
+        }
+        var st = parseInt($("#start").val());
+        var ed = parseInt($("#end").val());
+        initGraphStyle();
+        $.get("/BiBFS", {
+            "s": st, "t": ed
+        }, function (response) {
+            if (response === "") {
+                alert("图为空");
+                return;
+            }
+
         });
     }
 
@@ -287,27 +307,36 @@
             data: {source: sourceId, target: targetId, id: sourceId + '-' + targetId, dis: dis}
         }]);
     };
-    layui.use(['form','layer', 'upload','jquery'], function () {
+    layui.use(['form', 'layer', 'upload', 'jquery'], function () {
         var layer = layui.layer;
-        var upload = layui.upload;
         var form = layui.form;
         var $ = layui.jquery;
-        // 渲染
+        var upload = layui.upload;
+        var $ = layui.$;
         upload.render({
-            elem: '#fileUpload',
-            url: '/upload', // 此处配置你自己的上传接口即可
+            elem: '#ID-upload-file',
+            url: '/upload', // 此处用的是第三方的 http 请求演示，实际使用时改成您自己的上传接口即可。
             field: 'graph',
+            accept: 'file',
             auto: false,
-            size: 10 * 1024, // 限制文件大小，单位 KB
-            // multiple: true,
-            bindAction: '#btnUpload',
-            done: function (res) {
-                if (res.code === "200")
-                    layer.msg('文件上传成功');
-                else {
-                    layer.msg(res.msg, {icon: 2});
+            size: 10 * 1024,
+            bindAction: '#ID-upload-action',
+            done: function (res) { // 成功的回调
+                if (res.code === 200) { // 上传成功
+                    layer.msg("文件上传成功");
+                    return;
                 }
+                layer.msg(res.msg, {icon: 2});
             }
+        });
+        $(function () {
+            $.get("/graphList", function (response) {
+                $.each(response, function (index, value) {
+                    var optionElement = $("<option>").val(value).text(value);
+                    $("#selectGraph").append(optionElement);
+                });
+                layui.form.render('select'); // 渲染 select 组件
+            })
         });
     });
 
