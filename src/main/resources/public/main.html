@@ -8,44 +8,63 @@
     <link rel="stylesheet" href="/webjars/layui/2.6.8/css/layui.css">
     <script type="text/javascript"
             src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.25.0/cytoscape.min.js"></script>
+    <style>
+        textarea {
+            overflow: scroll; /* 显示滚动条 */
+            overflow-x: hidden;
+            scrollbar-width: thin; /* 设置滚动条宽度 */
+            scrollbar-color: #888888 #dddddd; /* 设置滚动条颜色 */
+        }
+    </style>
+
 </head>
 <body>
 <div class="layui-row">
     <div class="layui-col-md3" style="margin-left: 30px">
         <div class="layui-panel">
             <div style="padding: 32px;background: #cecaca">输入的图必须按照以下格式：<br>
-                第一行顶点总数，第二行开始为边,顶点必须从0开始<br>
+                顶点必须从0开始<br>
                 3<br>
                 0 1<br>
                 1 2<br>
                 2 0<br>
-                文件后缀为txt,文件大小不能超过10MB
+                文件后缀为txt,文件大小不能超过1MB
             </div>
         </div>
     </div>
-    <div class="layui-btn-container layui-col-md8" style="padding-top: 30px;padding-left: 20px">
+    <div class="layui-btn-container layui-col-md5" style="padding-top: 30px;padding-left: 20px">
         <div class="layui-upload">
             <button type="button" class="layui-btn layui-btn-normal" id="ID-upload-file">选择文件</button>
             <button type="button" class="layui-btn" id="ID-upload-action">开始上传</button>
         </div>
     </div>
+    <div class="layui-col-md3">
+        <textarea readonly style="background: white;width: 440px;height: 181px;resize:None"
+                  id="search-procedure"></textarea>
+    </div>
 </div>
 <div class="layui-row" style="margin-top: 30px">
     <div class="layui-col-xs3">
-        <div class="layui-form layui-inline" style="margin-left: 70px">
+        <div class="layui-form layui-inline" style="margin-left: 100px">
             <select id="selectGraph">
                 <option selected></option>
             </select>
         </div>
     </div>
     <div class="layui-col-xs3">
+        <label>顶点数:</label>
+        <span id="spanVertexNum"></span>
+        <label style="margin-left: 10px">边数:</label><span id="spanEdgeNum"></span>
+    </div>
+    <div class="layui-col-xs3">
         <div class="layui-inline">
-            <button style="margin-left: 20px;" id="btnGetGraph" onclick="initGraph()" class="layui-btn">获取图</button>
+            <button style="margin-left: 20px;" id="btnGetGraph" class="layui-btn">获取图</button>
             <button style="margin-left: 20px;" id="btninitGraphStyle" onclick="initGraphStyle()"
                     class="layui-btn layui-btn-danger">清除图样式
             </button>
         </div>
     </div>
+
 </div>
 <div style="height: 550px;margin-top: 10px">
     <div id="cy" style="height: 550px;width: 70%;float: left;border: 1px solid black;margin-left: 20px"></div>
@@ -62,11 +81,29 @@
                 <input id="end" class="layui-input" name="end" value="2"><br>
             </div>
         </div>
-        <button style="margin-top: 20px;margin-left: 60px" id="Dijkstra" class="layui-btn layui-btn-normal"
+        <button style="margin-top: 20px;margin-left: 60px;width: 90px" id="Dijkstra" class="layui-btn layui-btn-normal"
                 onclick="Dijkstra()">Dijkstra
         </button>
-        <button style="margin-top: 20px;margin-left: 50px" id="BiBFS" class="layui-btn layui-btn-normal"
+        <button style="margin-top: 20px;margin-left: 50px;width: 90px" id="BiBFS" class="layui-btn layui-btn-normal"
                 onclick="BiBFS()">BiBFS
+        </button>
+        <br>
+        <button style="margin-top: 20px;margin-left: 60px;width: 90px" id="CH" class="layui-btn layui-btn-normal"
+                onclick="CH()">CH
+        </button>
+        <button style="margin-top: 20px;margin-left: 60px;width: 90px" id="PLL" class="layui-btn layui-btn-normal"
+        >PLL
+        </button>
+        <br>
+        <button style="margin-top: 20px;margin-left: 50px;width: 90px" id="HubLabel" class="layui-btn layui-btn-normal"
+                onclick="HubLabel()">HubLabel
+        </button>
+        <button style="margin-top: 20px;margin-left: 50px;width: 90px" id="HL" class="layui-btn layui-btn-normal"
+                onclick="HL()">HL
+        </button>
+        <br>
+        <button style="margin-top: 20px;margin-left: 60px;width: 90px" id="H2H" class="layui-btn layui-btn-normal"
+                onclick="H2H()">H2H
         </button>
         <br><br>
         <span style="margin-left: 30px">距离：</span><span id="dis" style="color: red"></span>
@@ -74,10 +111,12 @@
 </div>
 </body>
 <script>
-    const delayTime = 200;
+    const delayTime = 500;
     var nodes = new Set();
     var edges = [];
     var styleJson = null;
+    var visitedList = "visitedList";
+    var searchProcedure = "searchProcedure";
     var layout = {
         name: 'cose',
         randomize: true,//随机初始化位置
@@ -119,9 +158,6 @@
         'label': function (ele) {
             return ele.data('dis');
         }
-        //曲线端点样式，target可替换为source、mid-source、mid-target
-        // 'color': '#2a3b77',
-        // 'content': 'data(relationship)',
     };
 
     var cy = cytoscape({
@@ -139,43 +175,74 @@
     });
 
 
-    function initGraph() {
-        if ($("#selectGraph").val() === '' && styleJson != null) {
-            alert("请选择图")
-            return;
+    //将白色到红色分成N个区间，返回RGB数组
+    /**
+     *   颜色渐变
+     *   num：颜色个数
+     */
+    function fColorGradualChange(startColor, endColor, num) {
+        var rgb = /^rgb|RGB\((([0-9]|[1-9]\d|1\d\d|2([0-4]\d|5[0-5])),){2}([0-9]|[1-9]\d|1\d\d|2([0-4]\d|5[0-5]))\)$/;    //rgb
+        var hex = /(^#[0-9A-F]{6}$)|(^#[0-9A-F]{3}$)/i; //16进制
+        //颜色预处理
+        var startRGB, endRGB;
+        if (hex.test(startColor)) {
+            startRGB = fAnalysisRGB(startColor);
+        } else if (rgb.test(startColor)) {
+            startRGB = startColor.substring(3, 15).split(',');
         }
-        $.get("/graph",
-            {
-                "graphName": $("#selectGraph").val()
-            }, function (response) {
-                nodes.clear();
-                edges.length = 0;
-                cy.remove(cy.elements());
-                styleJson = null;
-                try {
-                    var strEdgeArr = response.split(',');
-                    for (const strEdge of strEdgeArr) {
-                        var [source, target, dis] = strEdge.split(' ');
-                        nodes.add(source);
-                        nodes.add(target);
-                        edges.push({source, target});
-                        cy.add([{group: 'nodes', data: {id: source}}, {group: 'nodes', data: {id: target}},
-                        ]);
-                        addEdge(source, target, dis);
-                    }
-                } catch (e) {
-                    alert("图文件格式错误");
-                    return;
-                }
-                cy.layout(layout).run();
-                styleJson = cy.style().json();
-            }
-        );
+        if (hex.test(endColor)) {
+            endRGB = fAnalysisRGB(endColor);
+        } else if (rgb.test(startColor)) {
+            endRGB = endColor.substring(3, 15).split(',');
+        }
+        var startR = startRGB[0], startG = startRGB[1], startB = startRGB[2];
+        var endR = endRGB[0], endG = endRGB[1], endB = endRGB[2];
+
+        var sR = (endR - startR) / num;
+        var sG = (endG - startG) / num;
+        var sB = (endB - startB) / num;
+
+        var colors = [];
+        for (var i = 0; i < num; i++) {
+            colors.push(fColorToHex(parseInt((sR * i + startR)), parseInt((sG * i + startG)), parseInt((sB * i + startB))));
+        }
+        return colors;
     }
+
+
+    /**
+     *   解析rgb格式
+     */
+    function fAnalysisRGB(color) {
+        var color = color.toLowerCase().substring(1, color.length);
+        var colors = [];
+        colors.push(parseInt(color.substring(0, 2), 16))
+        colors.push(parseInt(color.substring(2, 4), 16))
+        colors.push(parseInt(color.substring(4, 6), 16))
+        return colors;
+    }
+
+    /**
+     *   rgb转hex
+     */
+    function fColorToHex(r, g, b) {
+        var hex = "#" + fAddZero(r.toString(16)) + fAddZero(g.toString(16)) + fAddZero(b.toString(16));
+        return hex;
+    }
+
+    /**
+     *   加0补位
+     */
+    function fAddZero(v) {
+        var newv = "00" + v;
+        return newv.substring(newv.length - 2, newv.length);
+    }
+
 
     function initGraphStyle() {
         cy.$('node, edge').stop(true, false);
         cy.$('node, edge').clearQueue();
+        cy.edges('[shortcut="true"]').remove();
         cy.nodes().removeStyle(); // 清除直接应用的样式
         cy.nodes().style(nodeStyle); // 重新设置样式
         cy.edges().removeStyle(); // 清除直接应用的样式
@@ -203,7 +270,6 @@
             }
             $("#dis").text(response.dis);
             var EdgeVisitedList = response.visitedList.split('|');
-
             var i = 0;
             var vv = new Array(nodes.size).fill(false);
             for (var p of [st, ed]) {
@@ -253,6 +319,12 @@
                 }
             }
             console.log("动画添加结束");
+            $("#search-procedure").text("");
+            $("#search-procedure").append("Dijkstra 搜索过程\n");
+            $.each(response.searchProcedure, function (key, value) {
+                $("#search-procedure").append("到起点的距离:" + key + "   ");
+                $("#search-procedure").append("被搜索到的顶点:" + value + "\n");
+            });
         });
     }
 
@@ -272,10 +344,192 @@
             "s": st, "t": ed
         }, function (response) {
             if (response === "") {
+                alert("BiBFS只能在无向无权图中运行");
+                return;
+            }
+            $("#dis").text(response.dis);
+            var EdgeVisitedList = response.visitedList.split('|');
+            var i = 0;
+            var vv = new Array(nodes.size).fill(false);
+            for (var p of [st, ed]) {
+                cy.$("#" + p).animate({style: {'background-color': "yellow"}}, {duration: 1000})
+                    .delay((i++) * delayTime);
+                vv[p] = true;
+            }
+            for (var Edge of EdgeVisitedList) {
+                var [s, t] = Edge.split(',');
+                if (!vv[s]) {
+                    cy.$("#" + s).animate({style: {'background-color': "white"}}, {duration: 1000})
+                        .delay((i++) * delayTime)
+                        .animate({
+                            style: {
+                                'border-color': 'red',
+                                'background-color': 'red',
+                                'color': '#2a3b77',
+                            },
+                        }, {duration: 1000});
+                    vv[s] = true;
+                }
+                var source = s;
+                var target = t;
+                if (source > target) {
+                    var temp = source;
+                    source = target;
+                    target = temp;
+                }
+                cy.$('#' + source + '-' + target).animate({style: {'background-color': 'white'}}, {duration: 1000})
+                    .delay((i++) * delayTime)
+                    .animate({
+                        style: {
+                            'line-color': 'red',
+                            'width': 3,
+                        }
+                    }, {duration: 1000});
+                if (!vv[t]) {
+                    cy.$("#" + t).animate({style: {'background-color': "white"}}, {duration: 1000})
+                        .delay((i++) * delayTime)
+                        .animate({
+                            style: {
+                                'border-color': 'red',
+                                'background-color': 'red',
+                            },
+                        }, {duration: 1000});
+                    vv[t] = true;
+                }
+            }
+            console.log("动画添加结束");
+            $("#search-procedure").text("");
+            $("#search-procedure").append("双向BFS 搜索过程\n");
+            $.each(response.searchProcedure, function (key, value) {
+                if (parseInt(key) > 0) {
+                    $("#search-procedure").append("到" + st + "的距离:" + key + "   ");
+                    $("#search-procedure").append("被搜索到的顶点:" + value + "\n");
+                } else {
+                    $("#search-procedure").append("到" + ed + "的距离:" + Math.abs(key) + "   ");
+                    $("#search-procedure").append("被搜索到的顶点:" + value + "\n");
+                }
+            });
+        });
+    }
+
+    function CH() {
+        if (!inputExist()) {
+            alert("请输入起点和终点");
+            return;
+        }
+        if (styleJson == null) {
+            alert("请绘图后再运行算法");
+            return;
+        }
+        var st = parseInt($("#start").val());
+        var ed = parseInt($("#end").val());
+        initGraphStyle();
+        $.get("/CH", {
+            "s": st, "t": ed
+        }, function (response) {
+            if (response === "") {
                 alert("图为空");
                 return;
             }
+            $("#dis").text(response.dis);
+            $.each(response.shortcut, function (key, value) {
+                var start = parseInt(value.start);
+                var end = parseInt(value.end);
+                var dis = parseInt(value.dis);
+                addEdge(start, end, dis, "true");
+            });
 
+            //顶点按照order顺序，从白色到蓝色渐变
+            // var startColor = '#FFFFFF'; // 起始颜色为白色
+            // var endColor = '#0000ff'; // 结束颜色为红色
+            // var num = nodes.size; // 需要生成的颜色数量
+            // var colors = fColorGradualChange(startColor, endColor, num).reverse();
+            // $.each(response.chOrder, function (key, value) {
+            //     var node = key;
+            //     var order = value;
+            //     cy.$('#' + node).style({
+            //         'background-color': colors[order],
+            //     });
+            // });
+            cy.edges('[shortcut="true"]').style({
+                'width': '2',
+                //曲线样式，haystack | straight | straight-triangle | bezier | unbundled-bezier | segments
+                'curve-style': 'unbundled-bezier',
+                'control-point-distances': '20 -20',
+                'control-point-weights': '0.5 0.5',
+                'line-color': 'black',
+                'line-style': 'dashed', //边线样式，solid | dotted | dashed
+                'line-cap': 'round', //边缘线的帽样式
+                'line-opacity': '0.8', //边线不透明度，0-1之间
+            });
+            var EdgeVisitedList = response.visitedList.split('|');
+            var i = 0;
+            var vv = new Array(nodes.size).fill(false);
+            for (var p of [st, ed]) {
+                cy.$("#" + p).animate({style: {'background-color': "yellow"}}, {duration: 1000})
+                    .delay((i++) * delayTime);
+                vv[p] = true;
+            }
+            for (var Edge of EdgeVisitedList) {
+                var [s, t] = Edge.split(',');
+                if (!vv[s]) {
+                    cy.$("#" + s).animate({style: {'background-color': "white"}}, {duration: 1000})
+                        .delay((i++) * delayTime)
+                        .animate({
+                            style: {
+                                'border-color': 'red',
+                                'background-color': 'red',
+                                'color': '#2a3b77',
+                            },
+                        }, {duration: 1000});
+                    vv[s] = true;
+                }
+                var source = s;
+                var target = t;
+                if (source > target) {
+                    var temp = source;
+                    source = target;
+                    target = temp;
+                }
+                cy.$('#' + source + '-' + target).animate({style: {'background-color': 'white'}}, {duration: 1000})
+                    .delay((i++) * delayTime)
+                    .animate({
+                        style: {
+                            'line-color': 'red',
+                            'width': 3,
+                        }
+                    }, {duration: 1000});
+                if (!vv[t]) {
+                    cy.$("#" + t).animate({style: {'background-color': "white"}}, {duration: 1000})
+                        .delay((i++) * delayTime)
+                        .animate({
+                            style: {
+                                'border-color': 'red',
+                                'background-color': 'red',
+                            },
+                        }, {duration: 1000});
+                    vv[t] = true;
+                }
+            }
+            console.log("动画添加结束");
+            $("#search-procedure").text("");
+            $("#search-procedure").append("CH 搜索过程\n");
+            $("#search-procedure").append("顶点优先级排序:");
+            var orders = new Array(nodes.size);
+            $.each(response.chOrder, function (vertex, order) {
+                orders[order] = vertex;
+            });
+            for (var i = 0; i < orders.length; i++) {
+                if (i == orders.length - 1)
+                    $("#search-procedure").append(orders[i] + "\n");
+                else {
+                    $("#search-procedure").append(orders[i] + ">");
+                }
+            }
+            $.each(response.searchProcedure, function (key, value) {
+                $("#search-procedure").append("到起点的距离:" + key + "   ");
+                $("#search-procedure").append("被搜索到的顶点:" + value + "\n");
+            });
         });
     }
 
@@ -286,7 +540,8 @@
         return true;
     }
 
-    function addEdge(sourceId, targetId, dis) {
+
+    function addEdge(sourceId, targetId, dis, shortcut) {
         var sourceNode = cy.$('#' + sourceId);
         var targetNode = cy.$('#' + targetId);
 
@@ -304,7 +559,7 @@
         }
         cy.add([{
             group: 'edges',
-            data: {source: sourceId, target: targetId, id: sourceId + '-' + targetId, dis: dis}
+            data: {source: sourceId, target: targetId, id: sourceId + '-' + targetId, dis: dis, shortcut: shortcut}
         }]);
     };
     layui.use(['form', 'layer', 'upload', 'jquery'], function () {
@@ -319,26 +574,70 @@
             field: 'graph',
             accept: 'file',
             auto: false,
-            size: 10 * 1024,
+            size: 1 * 1024,
             bindAction: '#ID-upload-action',
             done: function (res) { // 成功的回调
-                if (res.code === 200) { // 上传成功
-                    layer.msg("文件上传成功");
+                if (res.code === "200") { // 上传成功
+                    layer.msg("文件上传成功", {icon: 1});
                     return;
                 }
                 layer.msg(res.msg, {icon: 2});
             }
         });
+
         $(function () {
+            $("#btnGetGraph").click(function () {
+                initGraph();
+            });
+
             $.get("/graphList", function (response) {
                 $.each(response, function (index, value) {
                     var optionElement = $("<option>").val(value).text(value);
                     $("#selectGraph").append(optionElement);
                 });
                 layui.form.render('select'); // 渲染 select 组件
-            })
+            });
+
+            function initGraph() {
+                if ($("#selectGraph").val() === '') {
+                    if (styleJson != null) {
+                        alert("已经初始化过图了");
+                        return;
+                    }
+                    alert("请选择图")
+                    return;
+                }
+                $.get("/graph",
+                    {
+                        "graphName": $("#selectGraph").val()
+                    }, function (response) {
+                        nodes.clear();
+                        edges.length = 0;
+                        cy.remove(cy.elements());
+                        styleJson = null;
+                        try {
+                            var strEdgeArr = response.split(',');
+                            for (const strEdge of strEdgeArr) {
+                                var [source, target, dis] = strEdge.split(' ');
+                                nodes.add(source);
+                                nodes.add(target);
+                                edges.push({source, target});
+                                cy.add([{group: 'nodes', data: {id: source}}, {group: 'nodes', data: {id: target}},
+                                ]);
+                                addEdge(source, target, dis, "false");
+                            }
+                        } catch (e) {
+                            alert("图文件格式错误");
+                            return;
+                        }
+                        cy.layout(layout).run();
+                        styleJson = cy.style().json();
+                        $("#spanVertexNum").text(nodes.size);
+                        $("#spanEdgeNum").text(edges.length);
+                    });
+            }
+
         });
     });
-
 </script>
 </html>

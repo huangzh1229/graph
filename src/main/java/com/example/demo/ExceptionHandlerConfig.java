@@ -1,9 +1,13 @@
 package com.example.demo;
 
+import jakarta.servlet.http.HttpServletResponse;
 import org.apache.tomcat.util.http.fileupload.FileUploadException;
 import org.apache.tomcat.util.http.fileupload.impl.SizeLimitExceededException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -34,5 +38,11 @@ public class ExceptionHandlerConfig {
         re.put("code", "500");
         re.put("msg", e.getMessage());
         return re;
+    }
+
+    @ExceptionHandler(GraphException.class)
+    public ResponseEntity<String> GraphException(GraphException e) {
+        logger.info("算法报错：" + e.getMessage());
+        return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
     }
 }

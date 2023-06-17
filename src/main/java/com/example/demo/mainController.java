@@ -34,9 +34,10 @@ public class mainController {
         if (!StringUtils.hasText(graphName) || !G.readGraphFromFile(graphFilePath + graphName)) {
             return null;
         }
-        ArrayList<Graph.Pair> graph = G.getGraphData();
+
+        ArrayList<Graph.Edge> graph = G.getOriginGraph();
         for (int i = 0; i < graph.size(); i++) {
-            result.append(graph.get(i).u + " " + graph.get(i).v + " " + G.getDefaultDis());
+            result.append(graph.get(i).start + " " + graph.get(i).end + " " + graph.get(i).dis);
             if (i != graph.size() - 1) {
                 result.append(',');
             }
@@ -75,15 +76,6 @@ public class mainController {
                     }
                 }
             }
-            InputStream inputStream = file.getInputStream();
-            BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
-            String firstLine = reader.readLine();
-            reader.close();
-            try {
-                Integer.parseInt(firstLine);
-            } catch (Exception e) {
-                throw new FileUploadException("文件格式错误");
-            }
             String realPath = ResourceUtils.getURL("classpath:").getPath() + graphFilePath;
             file.transferTo(new File(realPath + File.separator + fileName));
             result.put("code", "200");
@@ -96,7 +88,7 @@ public class mainController {
     }
 
     @GetMapping("/Dijkstra")
-    public Map<String, Object> Dijkstra(@RequestParam("s") int s, @RequestParam("t") int t) {
+    public Map<String, Object> Dijkstra(@RequestParam("s") int s, @RequestParam("t") int t) throws Exception {
         if (G.empty()) return null;
         Map<String, Object> result = G.Dijkstra(s, t);
         StringBuffer line = new StringBuffer();
@@ -105,6 +97,42 @@ public class mainController {
             line.append(p.u + "," + p.v + "|");
         }
         result.put(G.mapKey_visitedList, line.substring(0, line.length() - 1).toString());
+        return result;
+    }
+
+    @GetMapping("/BiBFS")
+    public Map<String, Object> BiBFS(@RequestParam("s") int s, @RequestParam("t") int t) throws Exception {
+        if (G.getWeighted()) return null;
+        Map<String, Object> result = G.BiBFS(s, t);
+        StringBuffer line = new StringBuffer();
+        for (Graph.Pair p : (ArrayList<Graph.Pair>) result.get(G.mapKey_visitedList)) {
+            if (p.u == G.getInf() || p.v == G.getInf()) continue;
+            line.append(p.u + "," + p.v + "|");
+        }
+        result.put(G.mapKey_visitedList, line.substring(0, line.length() - 1));
+        return result;
+    }
+
+    @GetMapping("/CH")
+    public Map<String, Object> CH(@RequestParam("s") int s, @RequestParam("t") int t) throws Exception {
+        if (G.getWeighted()) return null;
+        Map<String, Object> result = G.CH(s, t);
+        StringBuffer line = new StringBuffer();
+        for (Graph.Pair p : (ArrayList<Graph.Pair>) result.get(G.mapKey_visitedList)) {
+            if (p.u == -1 || p.v == -1) continue;
+            line.append(p.u + "," + p.v + "|");
+        }
+        result.put(G.mapKey_visitedList, line.substring(0, line.length() - 1));
+        ArrayList<HashMap<String, String>> sc = new ArrayList<>();
+        for (Graph.Edge shortcut : (ArrayList<Graph.Edge>) result.get(G.mapKey_shortcut)) {
+            HashMap<String, String> map = new HashMap<>();
+            map.put("start", String.valueOf(shortcut.start));
+            map.put("end", String.valueOf(shortcut.end));
+            map.put("dis", String.valueOf(shortcut.dis));
+            sc.add(map);
+        }
+        result.put(G.mapKey_chOrder, G.getChOrder());
+        result.put(G.mapKey_shortcut, sc);
         return result;
     }
 }
