@@ -5,9 +5,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.util.ResourceUtils;
 
+import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileWriter;
 import java.util.*;
 
 /**
@@ -15,13 +18,15 @@ import java.util.*;
  * @date 2023/5/29 20:02
  **/
 public class Graph {
-    private Logger logger= LoggerFactory.getLogger(Graph.class);
+    private Logger logger = LoggerFactory.getLogger(Graph.class);
     private int countVertex;
     private boolean weighted;
     private ArrayList<ArrayList<VertexWithDis>> adjList;
     private ArrayList<Edge> originGraph;
     private int inf = 9999;
     private int defaultDis = 1;
+    private String indexPath = "/static/index/";
+    private String graphName = null;
     public String mapKey_dis = "dis";
     public String mapKey_visitedList = "visitedList";
 
@@ -29,6 +34,8 @@ public class Graph {
     public String mapKey_shortcut = "shortcut";
 
     public String mapKey_chOrder = "chOrder";
+
+    public String mapKey_index = "index";
     /**
      * 顶点order排序
      * index为顶点id，chOrder[id]为order
@@ -42,6 +49,14 @@ public class Graph {
 
     public int[] getChOrder() {
         return chOrder;
+    }
+
+    public String getGraphName() {
+        return graphName;
+    }
+
+    public void setGraphName(String graphName) {
+        this.graphName = graphName;
     }
 
     public int getInf() {
@@ -143,12 +158,14 @@ public class Graph {
             originGraph.clear();
             this.countVertex = 0;
             ClassPathResource readFile = new ClassPathResource(filePath);
+            if (!readFile.exists()) return false;
             File file = readFile.getFile();
+
             Scanner scanner = new Scanner(file);
             //把图读进去
             while (scanner.hasNextLine()) {
                 String line = scanner.nextLine().trim();
-                if (line.charAt(0)=='#')continue;
+                if (line.charAt(0) == '#') continue;
                 String[] pair = line.split(" ");
                 int vertex1 = Integer.parseInt(pair[0]);
                 int vertex2 = Integer.parseInt(pair[1]);
@@ -555,6 +572,127 @@ public class Graph {
         re.put(mapKey_searchProcedure, visitedLevel);
         re.put(mapKey_shortcut, shortCut);
         return re;
+    }
+
+    private ArrayList<ArrayList<VertexWithDis>> PLL_indexConstruction() throws Exception {
+        Degree[] degreeArr = new Degree[this.adjList.size()];
+        ArrayList<ArrayList<VertexWithDis>> index = new ArrayList<>();
+        for (int vertexId = 0; vertexId < this.adjList.size(); vertexId++) {
+            degreeArr[vertexId] = new Degree(vertexId, this.adjList.get(vertexId).size());
+            index.add(new ArrayList<>());
+        }
+        //添加顶点order,顶点按照度数从大到小排列
+        Arrays.sort(degreeArr, (o1, o2) -> Integer.compare(o2.degree, o1.degree));
+        PriorityQueue<VertexWithDis> queue = new PriorityQueue<>(Comparator.comparingInt(o -> o.dis));
+        boolean[] visited = new boolean[countVertex];
+        int[] dis = new int[countVertex];
+
+        //从度数大到小开始遍历所有顶点，创建到vertex的index
+        for (int i = 0; i < degreeArr.length; i++) {
+            int source = degreeArr[i].v;
+            Arrays.fill(visited, false);
+            Arrays.fill(dis, inf);
+            queue.clear();
+            dis[source] = 0;
+            queue.add(new VertexWithDis(source, 0));
+            while (!queue.isEmpty()) {
+                VertexWithDis vertex = queue.poll();
+                visited[vertex.v] = true;
+                //剪枝
+                if (PLL_query(source, vertex.v, index) <= vertex.dis) {
+                    continue;
+                }
+                //更新index,按照顶点id从小到大排序
+                if (index.get(vertex.v).size() == 0)
+                    index.get(vertex.v).add(new VertexWithDis(source, vertex.dis));
+                else {
+                    ArrayList<VertexWithDis> indexForx = index.get(vertex.v);
+                    int size = indexForx.size();
+                    for (int j = 0; j < size; j++) {
+                        if (source < indexForx.get(j).v && source > indexForx.get(j).v) {
+                            index.get(vertex.v).add(j, new VertexWithDis(source, vertex.dis));
+                            break;
+                        } else if (j == indexForx.size() - 1) {
+                            index.get(vertex.v).add(new VertexWithDis(source, vertex.dis));
+                        }
+                    }
+                }
+                for (VertexWithDis neighbor : this.neighbors(vertex.v)) {
+                    if (!visited[neighbor.v] && dis[vertex.v] + neighbor.dis < dis[neighbor.v]) {
+                        dis[neighbor.v] = dis[vertex.v] + neighbor.dis;
+                        pushToQueue(queue, new VertexWithDis(neighbor.v, dis[neighbor.v]));
+                    }
+                }
+            }
+        }
+        String realPath = ResourceUtils.getURL("classpath:").getPath() + indexPath + graphName;
+        File file = new File(realPath);
+        if (file.exists()) return null;
+        BufferedWriter writer = new BufferedWriter(new FileWriter(file));
+        for (int i = 0; i < index.size(); i++) {
+            writer.write(i + " " + index.get(i).size() + "|");
+            for (int j = 0; j < index.get(i).size(); j++) {
+                if (j == index.get(i).size() - 1)
+                    writer.write(index.get(i).get(j).v + " " + index.get(i).get(j).dis);
+                else {
+                    writer.write(index.get(i).get(j).v + " " + index.get(i).get(j).dis + ",");
+                }
+            }
+            writer.newLine();
+        }
+        writer.close();
+        return index;
+    }
+
+    private int PLL_query(int s, int t, ArrayList<ArrayList<VertexWithDis>> index) {
+        if (index == null) return inf;
+        int dis = inf;
+        ArrayList<VertexWithDis> indexS = index.get(s);
+        ArrayList<VertexWithDis> indexT = index.get(t);
+        int ps = 0;
+        int pt = 0;
+        while (ps != indexS.size() && pt != indexT.size()) {
+            if (indexS.get(ps).v == indexT.get(pt).v) {
+                dis = Math.min(dis, indexS.get(ps).dis + indexT.get(pt).dis);
+                ps++;
+                pt++;
+            } else if (indexS.get(ps).v < indexT.get(pt).v) {
+                ps++;
+            } else {
+                pt++;
+            }
+        }
+        return dis;
+    }
+
+    public  int PLL(int s, int t) throws Exception {
+        String indexFile = indexPath + graphName;
+        ClassPathResource readFile = new ClassPathResource(indexFile);
+        ArrayList<ArrayList<VertexWithDis>> PLL_index = new ArrayList<>();
+        //如果没有索引，则构建索引
+        if (!readFile.exists()) {
+            PLL_index = PLL_indexConstruction();
+        } else {
+            Scanner scanner = new Scanner(readFile.getInputStream());
+            for (int i = 0; i < countVertex; i++) {
+                PLL_index.add(new ArrayList<>());
+            }
+            while (scanner.hasNextLine()) {
+                String[] line = scanner.nextLine().split("\\|");
+                String[] pair = line[0].split(" ");
+                int vertex = Integer.parseInt(pair[0]);
+                int size = Integer.parseInt(pair[1]);
+                String[] index = line[1].split(",");
+                for (int i = 0; i < size; i++) {
+                    String[] indexPair = index[i].split(" ");
+                    int v = Integer.parseInt(indexPair[0]);
+                    int dis = Integer.parseInt(indexPair[1]);
+                    PLL_index.get(vertex).add(new VertexWithDis(v, dis));
+                }
+            }
+            scanner.close();
+        }
+        return PLL_query(s, t, PLL_index);
     }
 
     class Degree {

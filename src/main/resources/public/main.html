@@ -175,70 +175,6 @@
     });
 
 
-    //将白色到红色分成N个区间，返回RGB数组
-    /**
-     *   颜色渐变
-     *   num：颜色个数
-     */
-    function fColorGradualChange(startColor, endColor, num) {
-        var rgb = /^rgb|RGB\((([0-9]|[1-9]\d|1\d\d|2([0-4]\d|5[0-5])),){2}([0-9]|[1-9]\d|1\d\d|2([0-4]\d|5[0-5]))\)$/;    //rgb
-        var hex = /(^#[0-9A-F]{6}$)|(^#[0-9A-F]{3}$)/i; //16进制
-        //颜色预处理
-        var startRGB, endRGB;
-        if (hex.test(startColor)) {
-            startRGB = fAnalysisRGB(startColor);
-        } else if (rgb.test(startColor)) {
-            startRGB = startColor.substring(3, 15).split(',');
-        }
-        if (hex.test(endColor)) {
-            endRGB = fAnalysisRGB(endColor);
-        } else if (rgb.test(startColor)) {
-            endRGB = endColor.substring(3, 15).split(',');
-        }
-        var startR = startRGB[0], startG = startRGB[1], startB = startRGB[2];
-        var endR = endRGB[0], endG = endRGB[1], endB = endRGB[2];
-
-        var sR = (endR - startR) / num;
-        var sG = (endG - startG) / num;
-        var sB = (endB - startB) / num;
-
-        var colors = [];
-        for (var i = 0; i < num; i++) {
-            colors.push(fColorToHex(parseInt((sR * i + startR)), parseInt((sG * i + startG)), parseInt((sB * i + startB))));
-        }
-        return colors;
-    }
-
-
-    /**
-     *   解析rgb格式
-     */
-    function fAnalysisRGB(color) {
-        var color = color.toLowerCase().substring(1, color.length);
-        var colors = [];
-        colors.push(parseInt(color.substring(0, 2), 16))
-        colors.push(parseInt(color.substring(2, 4), 16))
-        colors.push(parseInt(color.substring(4, 6), 16))
-        return colors;
-    }
-
-    /**
-     *   rgb转hex
-     */
-    function fColorToHex(r, g, b) {
-        var hex = "#" + fAddZero(r.toString(16)) + fAddZero(g.toString(16)) + fAddZero(b.toString(16));
-        return hex;
-    }
-
-    /**
-     *   加0补位
-     */
-    function fAddZero(v) {
-        var newv = "00" + v;
-        return newv.substring(newv.length - 2, newv.length);
-    }
-
-
     function initGraphStyle() {
         cy.$('node, edge').stop(true, false);
         cy.$('node, edge').clearQueue();
@@ -439,18 +375,6 @@
                 addEdge(start, end, dis, "true");
             });
 
-            //顶点按照order顺序，从白色到蓝色渐变
-            // var startColor = '#FFFFFF'; // 起始颜色为白色
-            // var endColor = '#0000ff'; // 结束颜色为红色
-            // var num = nodes.size; // 需要生成的颜色数量
-            // var colors = fColorGradualChange(startColor, endColor, num).reverse();
-            // $.each(response.chOrder, function (key, value) {
-            //     var node = key;
-            //     var order = value;
-            //     cy.$('#' + node).style({
-            //         'background-color': colors[order],
-            //     });
-            // });
             cy.edges('[shortcut="true"]').style({
                 'width': '2',
                 //曲线样式，haystack | straight | straight-triangle | bezier | unbundled-bezier | segments
@@ -636,6 +560,33 @@
                         $("#spanEdgeNum").text(edges.length);
                     });
             }
+
+          $("#PLL").click(function (){
+              if (!inputExist()) {
+                  alert("请输入起点和终点");
+                  return;
+              }
+              if (styleJson == null) {
+                  alert("请绘图后再运行算法");
+                  return;
+              }
+              var st = parseInt($("#start").val());
+              var ed = parseInt($("#end").val());
+              initGraphStyle();
+              $.ajax({
+                  type: "get",
+                  url: "/PLL",
+                  data: {'s':st,'t':ed},
+                  success: function(response){
+                      $("#dis").text(response);
+                  },
+                  error:function (response) {
+                      alert(response);
+                  }
+              });
+          })
+
+
 
         });
     });

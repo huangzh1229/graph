@@ -34,7 +34,7 @@ public class mainController {
         if (!StringUtils.hasText(graphName) || !G.readGraphFromFile(graphFilePath + graphName)) {
             return null;
         }
-
+        G.setGraphName(graphName);
         ArrayList<Graph.Edge> graph = G.getOriginGraph();
         for (int i = 0; i < graph.size(); i++) {
             result.append(graph.get(i).start + " " + graph.get(i).end + " " + graph.get(i).dis);
@@ -134,5 +134,12 @@ public class mainController {
         result.put(G.mapKey_chOrder, G.getChOrder());
         result.put(G.mapKey_shortcut, sc);
         return result;
+    }
+
+    @GetMapping("/PLL")
+    public Integer PLL(@RequestParam("s") int s, @RequestParam("t") int t) throws Exception {
+        if (G.getWeighted()) return null;
+        return G.PLL(s, t);
+
     }
 }

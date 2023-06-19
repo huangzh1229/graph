@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
+import java.io.FileNotFoundException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -41,8 +42,14 @@ public class ExceptionHandlerConfig {
     }
 
     @ExceptionHandler(GraphException.class)
-    public ResponseEntity<String> GraphException(GraphException e) {
+    public String GraphException(GraphException e) {
         logger.info("算法报错：" + e.getMessage());
-        return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        return e.getMessage();
+    }
+
+    @ExceptionHandler(FileNotFoundException.class)
+    public String FileNotFoundException(FileNotFoundException e) {
+        logger.info("文件不存在：" + e.getMessage());
+        return e.getMessage();
     }
 }
