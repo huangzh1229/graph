@@ -91,8 +91,7 @@
         <button style="margin-top: 20px;margin-left: 60px;width: 90px" id="CH" class="layui-btn layui-btn-normal"
                 onclick="CH()">CH
         </button>
-        <button style="margin-top: 20px;margin-left: 60px;width: 90px" id="PLL" class="layui-btn layui-btn-normal"
-        >PLL
+        <button style="margin-top: 20px;margin-left: 60px;width: 90px" id="PLL" class="layui-btn layui-btn-normal">PLL
         </button>
         <br>
         <button style="margin-top: 20px;margin-left: 50px;width: 90px" id="HubLabel" class="layui-btn layui-btn-normal"
@@ -174,7 +173,7 @@
         ],
     });
 
-
+    //初始化
     function initGraphStyle() {
         cy.$('node, edge').stop(true, false);
         cy.$('node, edge').clearQueue();
@@ -183,6 +182,24 @@
         cy.nodes().style(nodeStyle); // 重新设置样式
         cy.edges().removeStyle(); // 清除直接应用的样式
         cy.edges().style(edgeStyle); // 重新设置样式
+    }
+
+    /**
+     * 检查输入是否正确，正确返回true
+     * @returns {boolean}
+     */
+    function inputCheck() {
+        var st = parseInt($("#start").val());
+        var ed = parseInt($("#end").val());
+        if (isNaN(st) || isNaN(ed)) {
+            alert("请输入数字");
+            return false;
+        }
+        if (st < 0 || st >= nodes.size || ed < 0 || ed >= nodes.size) {
+            alert("请输入正确的起点和终点");
+            return false;
+        }
+        return true;
     }
 
     function Dijkstra() {
@@ -194,6 +211,7 @@
             alert("请绘图后再运行算法");
             return;
         }
+        if (!inputCheck()) return;
         var st = parseInt($("#start").val());
         var ed = parseInt($("#end").val());
         initGraphStyle();
@@ -273,6 +291,7 @@
             alert("请绘图后再运行算法");
             return;
         }
+        if (!inputCheck()) return;
         var st = parseInt($("#start").val());
         var ed = parseInt($("#end").val());
         initGraphStyle();
@@ -357,6 +376,7 @@
             alert("请绘图后再运行算法");
             return;
         }
+        if (!inputCheck()) return;
         var st = parseInt($("#start").val());
         var ed = parseInt($("#end").val());
         initGraphStyle();
@@ -561,33 +581,110 @@
                     });
             }
 
-          $("#PLL").click(function (){
-              if (!inputExist()) {
-                  alert("请输入起点和终点");
-                  return;
-              }
-              if (styleJson == null) {
-                  alert("请绘图后再运行算法");
-                  return;
-              }
-              var st = parseInt($("#start").val());
-              var ed = parseInt($("#end").val());
-              initGraphStyle();
-              $.ajax({
-                  type: "get",
-                  url: "/PLL",
-                  data: {'s':st,'t':ed},
-                  success: function(response){
-                      $("#dis").text(response);
-                  },
-                  error:function (response) {
-                      alert(response);
-                  }
-              });
-          })
+            $("#PLL").click(function () {
+                if (!inputExist()) {
+                    alert("请输入起点和终点");
+                    return;
+                }
+                if (styleJson == null) {
+                    alert("请绘图后再运行算法");
+                    return;
+                }
+                if (!inputCheck()) return;
+                var st = parseInt($("#start").val());
+                var ed = parseInt($("#end").val());
+                initGraphStyle();
+                $.ajax({
+                    type: "get",
+                    url: "/PLL",
+                    data: {'s': st, 't': ed},
+                    success: function (response) {
+                        $("#dis").text(response);
+                    },
+                    error: function (response) {
+                        alert(response);
+                    }
+                });
+            })
+
+            $("#HL").click(function () {
+                if (!inputExist()) {
+                    alert("请输入起点和终点");
+                    return;
+                }
+                if (styleJson == null) {
+                    alert("请绘图后再运行算法");
+                    return;
+                }
+                if (!inputCheck()) return;
+                var st = parseInt($("#start").val());
+                var ed = parseInt($("#end").val());
+                initGraphStyle();
+                $.ajax({
+                    type: "get",
+                    url: "/HL",
+                    data: {'s': st, 't': ed},
+                    success: function (response) {
+                        $("#dis").text(response);
+                    },
+                    error: function (response) {
+                        alert(response);
+                    }
+                });
+            })
+
+            $("#HubLabel").click(function () {
+                if (!inputExist()) {
+                    alert("请输入起点和终点");
+                    return;
+                }
+                if (styleJson == null) {
+                    alert("请绘图后再运行算法");
+                    return;
+                }
+                if (!inputCheck()) return;
+                var st = parseInt($("#start").val());
+                var ed = parseInt($("#end").val());
+                initGraphStyle();
+                $.ajax({
+                    type: "get",
+                    url: "/HubLabel",
+                    data: {'s': st, 't': ed},
+                    success: function (response) {
+                        $("#dis").text(response);
+                    },
+                    error: function (response) {
+                        alert(response);
+                    }
+                });
+            })
 
 
-
+            $("#H2H").click(function () {
+                if (!inputExist()) {
+                    alert("请输入起点和终点");
+                    return;
+                }
+                if (styleJson == null) {
+                    alert("请绘图后再运行算法");
+                    return;
+                }
+                if (!inputCheck()) return;
+                var st = parseInt($("#start").val());
+                var ed = parseInt($("#end").val());
+                initGraphStyle();
+                $.ajax({
+                    type: "get",
+                    url: "/H2H",
+                    data: {'s': st, 't': ed},
+                    success: function (response) {
+                        $("#dis").text(response);
+                    },
+                    error: function (response) {
+                        alert(response);
+                    }
+                });
+            })
         });
     });
 </script>

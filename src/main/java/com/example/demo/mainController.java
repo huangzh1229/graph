@@ -28,6 +28,12 @@ public class mainController {
     Graph G = new Graph();
     final private String graphFilePath = "/static/graph/";
 
+    /**
+     * 读取图文件
+     *
+     * @param graphName 文件名
+     * @return 图的邻接表
+     */
     @GetMapping("/graph")
     String getGraph(@RequestParam String graphName) {
         StringBuffer result = new StringBuffer();
@@ -45,15 +51,28 @@ public class mainController {
         return result.toString();
     }
 
+    /**
+     * 获取图文件列表
+     *
+     * @return 图文件名列表
+     * @throws Exception
+     */
     @GetMapping("/graphList")
     ArrayList<String> getGraphList() throws Exception {
         ClassPathResource readFile = new ClassPathResource(graphFilePath);
         File folder = readFile.getFile();
         File[] files = folder.listFiles();
         Assert.notNull(files, "没有图文件");
-        return new ArrayList<String>(Arrays.stream(files).map(File::getName).toList());
+        return new ArrayList<>(Arrays.stream(files).map(File::getName).toList());
     }
 
+    /**
+     * 上传图文件
+     *
+     * @param file 文件
+     * @return
+     * @throws Exception
+     */
     @PostMapping("/upload")
     public HashMap<String, String> handleFileUpload(@RequestParam("graph") MultipartFile file) throws Exception {
         HashMap<String, String> result = new HashMap<>();
@@ -141,5 +160,22 @@ public class mainController {
         if (G.getWeighted()) return null;
         return G.PLL(s, t);
 
+    }
+
+    @GetMapping("/HL")
+    public Integer HL(@RequestParam("s") int s, @RequestParam("t") int t) throws Exception {
+        if (G.getWeighted()) return null;
+        return G.HL(s, t);
+    }
+    @GetMapping("/HubLabel")
+    public Integer HubLabel(@RequestParam("s") int s, @RequestParam("t") int t) throws Exception {
+        if (G.getWeighted()) return null;
+        return G.hubLabel(s, t);
+    }
+
+    @GetMapping("/H2H")
+    public Integer H2H(@RequestParam("s") int s, @RequestParam("t") int t) throws Exception {
+        if (G.getWeighted()) return null;
+        return G.H2H(s, t);
     }
 }

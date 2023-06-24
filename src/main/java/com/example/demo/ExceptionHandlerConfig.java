@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -19,6 +20,9 @@ import java.util.Map;
  * @author huangzhuo
  * @date 2023/6/5 11:31
  **/
+/**
+ * 异常处理中心
+ * */
 @RestControllerAdvice
 public class ExceptionHandlerConfig {
     private static final Logger logger = LoggerFactory.getLogger(ExceptionHandlerConfig.class);
@@ -50,6 +54,11 @@ public class ExceptionHandlerConfig {
     @ExceptionHandler(FileNotFoundException.class)
     public String FileNotFoundException(FileNotFoundException e) {
         logger.info("文件不存在：" + e.getMessage());
+        return e.getMessage();
+    }
+
+    @ExceptionHandler(testException.class)
+        public String IOException(testException e) {
         return e.getMessage();
     }
 }

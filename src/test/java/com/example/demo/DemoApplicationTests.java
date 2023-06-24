@@ -5,9 +5,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.util.ResourceUtils;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
+import java.io.*;
 import java.util.*;
 
 @SpringBootTest
@@ -15,13 +13,10 @@ class DemoApplicationTests {
 
     @Test
     void contextLoads() throws Exception {
-        String realPath = ResourceUtils.getURL("classpath:").getPath() + ("/static/index/graph1.txt");
-        File file = new File(realPath);
-        BufferedWriter writer = new BufferedWriter(new FileWriter(file));
-        writer.write(1);
-        writer.newLine();
-        writer.write(2);
-        writer.close();
+        ArrayList<Graph.VertexWithDis> adjList = new ArrayList<>();
+        adjList.add(new Graph.VertexWithDis(1, 10));
+        adjList.add(new Graph.VertexWithDis(2, 10));
+        adjList.add(new Graph.VertexWithDis(1, 10));
+        adjList.stream().distinct().forEach(vertexWithDis -> System.out.println(vertexWithDis.v + " " + vertexWithDis.dis));
     }
-
 }
